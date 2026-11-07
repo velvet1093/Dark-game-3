@@ -1,0 +1,119 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+  <meta name="theme-color" content="#000000">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Ashen Oath">
+  <title>Ashen Oath</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700&family=IM+Fell+English&display=swap" rel="stylesheet">
+  <style>
+    html, body { margin: 0; width: 100%; height: 100%; background: #000; overflow: hidden; }
+    body {
+      display: flex; align-items: center; justify-content: center;
+      height: 100vh; height: 100dvh;
+      overscroll-behavior: none; touch-action: none;
+      -webkit-user-select: none; user-select: none; -webkit-touch-callout: none;
+      -webkit-tap-highlight-color: transparent;
+    }
+    canvas { display: block; background: #050304; cursor: crosshair; }
+    noscript { color: #c9b98a; font-family: Georgia, serif; }
+
+    /* ---------------- touch controls ---------------- */
+    #touch { position: fixed; inset: 0; z-index: 5; pointer-events: none; font-family: "Cinzel", Georgia, serif; }
+    #touch .zone { position: absolute; inset: 0; pointer-events: auto; touch-action: none; }
+    #touch .stick {
+      position: absolute; width: 120px; height: 120px; margin: -60px 0 0 -60px; border-radius: 50%;
+      border: 2px solid rgba(200,170,120,0.35); background: rgba(10,6,6,0.25);
+      opacity: 0; transition: opacity .12s; pointer-events: none;
+    }
+    #touch .stick.show { opacity: 1; }
+    #touch .knob {
+      position: absolute; left: 50%; top: 50%; width: 52px; height: 52px; border-radius: 50%;
+      background: radial-gradient(circle at 40% 35%, rgba(230,200,150,0.55), rgba(120,30,25,0.55));
+      border: 1px solid rgba(240,210,160,0.5); transform: translate(-50%,-50%);
+    }
+    #touch .tb {
+      position: absolute; pointer-events: auto; touch-action: none; border-radius: 50%;
+      border: 2px solid rgba(200,170,120,0.45); color: #e8d9b8;
+      background: radial-gradient(circle at 40% 30%, rgba(60,40,34,0.72), rgba(14,8,8,0.72));
+      box-shadow: 0 0 12px rgba(0,0,0,0.6), inset 0 0 10px rgba(0,0,0,0.6);
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      padding: 0; font: inherit; -webkit-appearance: none; appearance: none; outline: none;
+    }
+    #touch .tb span { font-size: 22px; line-height: 1; }
+    #touch .tb i { font-style: normal; font-size: 8px; letter-spacing: 1px; margin-top: 3px; opacity: .85; }
+    #touch .tb.on { background: radial-gradient(circle, rgba(170,40,30,0.85), rgba(60,10,10,0.85)); border-color: rgba(255,200,140,0.8); transform: scale(0.94); }
+    #touch .cluster {
+      position: absolute; right: calc(14px + env(safe-area-inset-right)); bottom: calc(12px + env(safe-area-inset-bottom));
+      width: 250px; height: 230px; pointer-events: none;
+    }
+    #touch .big   { width: 92px; height: 92px; right: 0; bottom: 0; }
+    #touch .big span { font-size: 32px; }
+    #touch .mid   { width: 62px; height: 62px; }
+    #touch .heavy { right: 104px; bottom: 6px; }
+    #touch .roll  { right: 96px; bottom: 82px; }
+    #touch .guard { right: 18px; bottom: 104px; }
+    #touch .flask { right: 176px; bottom: 26px; width: 54px; height: 54px; }
+    #touch .flask span { font-size: 18px; }
+    #touch .swap { right: 176px; bottom: 154px; width: 48px; height: 48px; display: none; }
+    #touch .swap span { font-size: 18px; }
+    #touch .tonic { right: 172px; bottom: 92px; width: 52px; height: 52px; border-color: rgba(150,200,110,0.55); }
+    #touch .tonic span { font-size: 18px; color: #b8e090; }
+    #touch .tonic.urgent { animation: pulse 0.5s ease-in-out infinite alternate; border-color: rgba(255,80,60,0.9); }
+    #touch .ctx   { width: 76px; height: 76px; right: 60px; bottom: 160px; display: none; }
+    #touch .ctx.show { display: flex; }
+    #touch .exec  { border-color: rgba(255,80,60,0.9); color: #ffd0c0; animation: pulse 0.7s ease-in-out infinite alternate;
+                    background: radial-gradient(circle, rgba(170,20,15,0.85), rgba(50,5,5,0.85)); }
+    #touch .use   { border-color: rgba(240,200,120,0.8); }
+    @keyframes pulse { from { box-shadow: 0 0 6px rgba(255,40,30,0.5); } to { box-shadow: 0 0 22px rgba(255,40,30,0.95); } }
+    #touch .top {
+      position: absolute; top: calc(8px + env(safe-area-inset-top)); right: calc(12px + env(safe-area-inset-right));
+      display: flex; gap: 10px; pointer-events: none;
+    }
+    #touch .top .tb { position: relative; }
+    #touch .small { width: 42px; height: 42px; }
+    #touch .small, #touch .small span { font-size: 16px; }
+    /* action buttons only during play; menus use taps + the joystick */
+    #touch:not([data-state="play"]) .cluster { display: none; }
+    #touch[data-state="title"] .top .tb[data-code], #touch[data-state="narration"] .top .tb[data-code],
+    #touch[data-state="dead"] .top .tb[data-code] { display: none; }
+    #touch[data-state="narration"] .top .tb[data-code] { display: flex; } /* doubles as "skip" */
+
+    #rotate {
+      position: absolute; inset: 0; display: none; pointer-events: auto; background: #050304; color: #d6c9ae;
+      align-items: center; justify-content: center; text-align: center; font-family: "IM Fell English", Georgia, serif;
+    }
+    #rotate p { font-size: 20px; margin: 18px 0 6px; }
+    #rotate small { color: #8a7a62; }
+    #rotate .phone { width: 38px; height: 64px; margin: 0 auto; border: 3px solid #b8261c; border-radius: 7px; animation: turn 1.8s ease-in-out infinite; }
+    @keyframes turn { 0%, 30% { transform: rotate(0); } 60%, 100% { transform: rotate(-90deg); } }
+    @media (orientation: portrait) { body.touch #rotate { display: flex; } }
+  </style>
+</head>
+<body>
+  <canvas id="game" tabindex="0"></canvas>
+  <noscript>Ashen Oath needs JavaScript to run.</noscript>
+  <script src="js/util.js"></script>
+  <script src="js/audio.js"></script>
+  <script src="js/mobile.js"></script>
+  <script src="js/rig.js"></script>
+  <script src="js/weapons.js"></script>
+  <script src="js/fx.js"></script>
+  <script src="js/player.js"></script>
+  <script src="js/skins.js"></script>
+  <script src="js/enemies.js"></script>
+  <script src="js/world.js"></script>
+  <script src="js/story.js"></script>
+  <script src="js/fairy.js"></script>
+  <script src="js/allies.js"></script>
+  <script src="js/quests.js"></script>
+  <script src="js/ui.js"></script>
+  <script src="js/game.js"></script>
+</body>
+</html>
